@@ -50,3 +50,9 @@
 - Verified `python -m py_compile` on the patched training and server modules.
 - Verified `RLModelTrainingConfig()` exposes the new TutorRM and GDPO defaults.
 - Stage 4 complete.
+- Added `reward_weights`, `apply_gdpo`, and `gdpo_eps` to `src/grpo/config.py`.
+- Added weighted reward handling and GDPO advantage normalization to `src/grpo/trainer.py`.
+- Wired `reward_weights`, `apply_gdpo`, and `gdpo_eps` through `train_rl.py` into `ClassroomGRPOConfig`.
+- Verified `python -m py_compile` on `src/grpo/config.py`, `src/grpo/trainer.py`, and `train_rl.py`.
+- Verified `ClassroomGRPOConfig(...)` accepts custom `reward_weights`, `apply_gdpo`, and `gdpo_eps`.
+- Stage 5 complete.
