@@ -1,10 +1,10 @@
-# AGENTS_FINAL.md — single end-to-end handoff for TutorRM + GDPO on PedagogicalRL
+# AGENTS.md — single end-to-end handoff for TutorRM + GDPO on PedagogicalRL
 
 ## 0) What to give the agent
 
-Give the agent exactly these six files plus the instruction to follow `AGENTS_FINAL.md` as the only source of truth:
+Give the agent exactly these six files plus the instruction to follow `AGENTS.md` as the only source of truth:
 
-- `AGENTS_FINAL.md`
+- `AGENTS.md`
 - `constraints_tutor_gdpo.txt`
 - `.env.example`
 - `setup_env.sh`
@@ -59,7 +59,7 @@ Builds the three final paper tables from local logs and MathTutorBench outputs:
 - `results_external.csv`
 - `results_efficiency.csv`
 
-### `AGENTS_FINAL.md`
+### `AGENTS.md`
 The only master instruction file.
 
 ## 3) Final folder layout
@@ -68,7 +68,7 @@ Create exactly this layout:
 
 ```text
 ~/tutor_gdpo_project/
-  AGENTS_FINAL.md
+  AGENTS.md
   constraints_tutor_gdpo.txt
   .env.example
   .env
@@ -122,7 +122,7 @@ Checklist:
 
 ```bash
 cd ~/tutor_gdpo_project
-cp /path/to/AGENTS_FINAL.md .
+cp /path/to/AGENTS.md .
 cp /path/to/constraints_tutor_gdpo.txt .
 cp /path/to/.env.example .
 cp /path/to/setup_env.sh .
