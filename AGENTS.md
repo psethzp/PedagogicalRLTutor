@@ -1,76 +1,105 @@
-# AGENTS.md — Exact end-to-end implementation brief for TutorRM + GDPO on PedagogicalRL
+# AGENTS_FINAL.md — single end-to-end handoff for TutorRM + GDPO on PedagogicalRL
 
-## 0) Non-negotiable project choices
+## 0) What to give the agent
 
-This project is fixed as follows.
+Give the agent exactly these six files plus the instruction to follow `AGENTS_FINAL.md` as the only source of truth:
 
-- **Main training repo:** `eth-lre/PedagogicalRL`
-- **Start checkpoint for training:** `eth-nlped/TutorRL-7B`
-- **External benchmark repo:** `eth-lre/mathtutorbench`
-- **Extra reward model repo:** `Kpetyxova/Towards_Reward_Modeling_for_Tutors`
-- **Released tutor reward model:** `kpetyxova/towards-reward-modeling-tutors`
-- **Main algorithmic comparison:**
+- `AGENTS_FINAL.md`
+- `constraints_tutor_gdpo.txt`
+- `.env.example`
+- `setup_env.sh`
+- `run_mathtutorbench_suite.sh`
+- `aggregate_results.py`
+
+
+## 1) Fixed project choices
+
+This project is fixed.
+
+- Main training repo: `eth-lre/PedagogicalRL`
+- Start checkpoint: `eth-nlped/TutorRL-7B`
+- External benchmark repo: `eth-lre/mathtutorbench`
+- Tutor reward-model repo: `Kpetyxova/Towards_Reward_Modeling_for_Tutors`
+- Released TutorRM model: `kpetyxova/towards-reward-modeling-tutors`
+- Main comparison:
   - **A1:** TutorRM + stock PedagogicalRL summed-reward GRPO
-  - **A2:** TutorRM + GDPO advantage normalization
-- **Baselines:**
+  - **A2:** TutorRM + GDPO
+- Baselines:
   - **A0a:** `eth-nlped/TutorRL-7B` on MathTutorBench
   - **A0b:** `eth-nlped/TutorRL-7B-think` on MathTutorBench
-- **Optional cheap add-on:**
-  - **A3:** first-teacher-reply TutorRM vs all-teacher-turns-mean TutorRM, only after A1 and A2 are fully complete
-- **Hardware assumption for the implementation:** two independent 1-GPU runs in parallel, one run per GPU
-- **Training strategy:** short continuation training from the released TutorRL checkpoint, not full reproduction from raw Qwen
+- Add-on only after A1/A2 are complete:
+  - **A3:** `first_teacher_only` vs `all_teacher_turns_mean`
+- Hardware assumption: two independent one-GPU runs in parallel
+- Training strategy: short continuation from released TutorRL, not full reproduction from raw Qwen
 
-Do **not** redesign the project. Do **not** substitute another repo. Do **not** retrain the tutor reward model. Do **not** try to reproduce the full PedagogicalRL paper budget.
+Do not redesign the project. Do not swap repos. Do not retrain TutorRM. Do not attempt the full PedagogicalRL paper budget.
 
----
+## 2) What each helper file is for
 
-## 1) Final experiment set
+### `constraints_tutor_gdpo.txt`
+Shared best-effort version lock for the one-environment setup.
 
-Run exactly these experiments.
+### `.env.example`
+Template for optional secrets and recommended environment defaults.
 
-### A0 — Baselines
-1. `eth-nlped/TutorRL-7B` on full MathTutorBench
-2. `eth-nlped/TutorRL-7B-think` on full MathTutorBench
+### `setup_env.sh`
+Creates the Python 3.11 venv, loads `.env`, exports `HUGGING_FACE_HUB_TOKEN` from `HF_TOKEN` if needed, installs the shared stack, writes `env_versions.json`, and avoids MathTutorBench downgrading the training stack.
 
-### A1 — TutorRM + stock GRPO
-Continue `eth-nlped/TutorRL-7B` inside PedagogicalRL after adding the tutor-specific remediation reward. Keep the existing PedagogicalRL reward aggregation logic, which sums reward channels before grouped normalization.
+### `run_mathtutorbench_suite.sh`
+Runs MathTutorBench in the correct split:
+- five non-pedagogical tasks together
+- four pedagogical generation tasks separately
+- `compute_scaffolding_score.py` after each pedagogical task
+- stable served-model-name verification
+- writes benchmark meta JSON with elapsed minutes
 
-### A2 — TutorRM + GDPO
-Same as A1, but replace the stock summed-reward GRPO advantage computation with GDPO-style per-reward normalization before combination.
+### `aggregate_results.py`
+Builds the three final paper tables from local logs and MathTutorBench outputs:
+- `results_internal.csv`
+- `results_external.csv`
+- `results_efficiency.csv`
 
-### A3 — Optional only if A1 and A2 finish early
-Repeat only the better of A1/A2 with:
-- `tutor_rm_mode = first_teacher_only`
-- `tutor_rm_mode = all_teacher_turns_mean`
+### `AGENTS_FINAL.md`
+The only master instruction file.
 
-Use A3 only if A1 and A2, including evaluation, are already finished.
+## 3) Final folder layout
 
----
+Create exactly this layout:
 
-## 2) Top-level workflow summary
+```text
+~/tutor_gdpo_project/
+  AGENTS_FINAL.md
+  constraints_tutor_gdpo.txt
+  .env.example
+  .env
+  setup_env.sh
+  aggregate_results.py
+  PedagogicalRL/
+  mathtutorbench/
+    run_mathtutorbench_suite.sh
+  Towards_Reward_Modeling_for_Tutors/
+```
 
-1. Clone the three repos.
-2. Create one Python 3.11 virtual environment.
-3. Install the three repos’ requirements into that single venv.
-4. Patch PedagogicalRL launcher scripts so two ablations can run in parallel without killing each other.
-5. Add the tutor-specific reward path to PedagogicalRL.
-6. Add GDPO flags and trainer logic to PedagogicalRL.
-7. Generate three new config files:
-   - `config/deepspeed/zero3_1GPU.yaml`
-   - `config/train_rl/7b_tutorrm_grpo.yaml`
-   - `config/train_rl/7b_tutorrm_gdpo.yaml`
-8. Run A0 baselines on MathTutorBench.
-9. Run 5-step smoke tests for A1 and A2.
-10. Run the full A1 and A2 continuation jobs in parallel.
-11. Evaluate both trained models with:
-    - PedagogicalRL internal eval
-    - MathTutorBench external eval
-    - LightEval sanity on the winner only
-12. Export one final result table and one efficiency table.
+## 4) Locked environment choice
 
----
+Use this single shared environment:
 
-## 3) Exact repo layout to create
+- Python `3.11`
+- PyTorch `2.6.0`
+- torchvision `0.21.0`
+- torchaudio `2.6.0`
+- vLLM `0.8.3`
+- flash-attn `2.7.4.post1`
+- Transformers `4.50.3`
+- TRL `0.18.0`
+- Accelerate `1.6.0`
+- Datasets `3.1.0`
+- Hydra `1.3.2`
+- OmegaConf `2.3.0`
+
+Install MathTutorBench with `--no-deps` after the core stack is fixed.
+
+## 5) Clone repos
 
 ```bash
 mkdir -p ~/tutor_gdpo_project
@@ -81,36 +110,49 @@ git clone https://github.com/eth-lre/mathtutorbench.git
 git clone https://github.com/Kpetyxova/Towards_Reward_Modeling_for_Tutors.git
 ```
 
-Expected layout:
-
-```text
-~/tutor_gdpo_project/
-  PedagogicalRL/
-  mathtutorbench/
-  Towards_Reward_Modeling_for_Tutors/
-```
-
 Checklist:
-- [ ] All three repos clone successfully
-- [ ] `PedagogicalRL/train_rl.py` exists
-- [ ] `mathtutorbench/main.py` exists
-- [ ] `Towards_Reward_Modeling_for_Tutors/inference.py` exists
+- `PedagogicalRL/train_rl.py` exists
+- `PedagogicalRL/vllm_server.py` exists
+- `PedagogicalRL/eval.py` exists
+- `mathtutorbench/main.py` exists
+- `mathtutorbench/reward_model/compute_scaffolding_score.py` exists
+- `Towards_Reward_Modeling_for_Tutors/inference.py` exists
 
----
-
-## 4) Exact environment setup
-
-Use a venv, not conda.
+## 6) Copy helper files into place
 
 ```bash
 cd ~/tutor_gdpo_project
-python3.11 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip wheel setuptools
+cp /path/to/AGENTS_FINAL.md .
+cp /path/to/constraints_tutor_gdpo.txt .
+cp /path/to/.env.example .
+cp /path/to/setup_env.sh .
+cp /path/to/aggregate_results.py .
+chmod +x setup_env.sh
 
-pip install -r PedagogicalRL/requirements.txt
-pip install -r mathtutorbench/requirements.txt
-pip install -r Towards_Reward_Modeling_for_Tutors/requirements.txt
+cp /path/to/run_mathtutorbench_suite.sh mathtutorbench/
+chmod +x mathtutorbench/run_mathtutorbench_suite.sh
+```
+
+## 7) Create `.env`
+
+```bash
+cd ~/tutor_gdpo_project
+cp .env.example .env
+```
+
+Rules:
+- `HF_TOKEN`: optional but recommended
+- `WANDB_API_KEY`: optional
+- `OPENROUTER_API_KEY`: optional
+- `WANDB_MODE=disabled` by default
+- if no `WANDB_API_KEY`, everything must still run and log locally
+
+## 8) Build the environment
+
+```bash
+cd ~/tutor_gdpo_project
+bash setup_env.sh ~/tutor_gdpo_project ~/tutor_gdpo_project/constraints_tutor_gdpo.txt
+source ~/tutor_gdpo_project/.venv/bin/activate
 ```
 
 After install, run this exact sanity check:
@@ -126,29 +168,19 @@ PY
 ```
 
 Checklist:
-- [ ] Venv created
-- [ ] All requirements installed without unresolved conflicts
-- [ ] `torch.cuda.is_available()` returns `True`
-- [ ] `import trl` works
-- [ ] `import fastapi` works
+- `.venv` exists
+- `env_versions.json` exists
+- `python -c "import torch; print(torch.cuda.is_available())"` returns `True`
+- `python -c "import transformers, trl, vllm; print(transformers.__version__, trl.__version__, vllm.__version__)"` prints `4.50.3 0.18.0 0.8.3`
 
----
-
-## 5) Mandatory Stage 1 patch — make the launcher parallel-safe
+## 9) Patch PedagogicalRL launcher so two runs can coexist
 
 This stage is mandatory.
 
 ### Why this stage exists
 PedagogicalRL’s stock launcher hardcodes `http://localhost:8005/docs` when waiting for the server, and `stop_vllm_server.sh` uses global `pkill` on `uvicorn`, `multiprocess.spawn`, and `vllm_server.py`. That means two ablations running at once will collide and kill each other.
 
-### Files to edit
-- `PedagogicalRL/stop_vllm_server.sh`
-- `PedagogicalRL/start_vllm_server.sh`
-- `PedagogicalRL/start_rl_training.sh`
-
-### 5.1) Replace `stop_vllm_server.sh`
-
-Overwrite the file with this exact content:
+### 9.1 Replace `PedagogicalRL/stop_vllm_server.sh`
 
 ```bash
 #!/usr/bin/env bash
@@ -174,14 +206,13 @@ Then:
 chmod +x PedagogicalRL/stop_vllm_server.sh
 ```
 
-### 5.2) Replace `start_vllm_server.sh`
-
-Overwrite the file with this exact content:
+### 9.2 Replace `PedagogicalRL/start_vllm_server.sh`
 
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
 
+SERVER_PORT="${SERVER_PORT:-8005}"
 ./stop_vllm_server.sh
 exec python vllm_server.py "$@"
 ```
@@ -192,37 +223,19 @@ Then:
 chmod +x PedagogicalRL/start_vllm_server.sh
 ```
 
-### 5.3) Patch `start_rl_training.sh`
+### 9.3 Patch `PedagogicalRL/start_rl_training.sh`
 
-Edit the script so it does **all** of the following:
+Required changes:
+- read `SERVER_PORT="${SERVER_PORT:-8005}"`
+- after starting the server, write `.vllm_${SERVER_PORT}.pid`
+- replace the hardcoded wait loop URL with `http://localhost:${SERVER_PORT}/docs`
+- keep the rest of the accelerate logic intact
 
-1. Reads:
+Checklist:
+- no hardcoded `8005` in the wait loop
+- no global `pkill` left anywhere
 
-```bash
-SERVER_PORT="${SERVER_PORT:-8005}"
-```
-
-2. After starting the background server, writes the PID file:
-
-```bash
-./start_vllm_server.sh "${SERVER_ARGS[@]}" &
-SERVER_PID=$!
-echo "${SERVER_PID}" > ".vllm_${SERVER_PORT}.pid"
-```
-
-3. Replaces the hardcoded wait loop URL:
-
-```bash
-until curl --output /dev/null --silent --head --fail "http://localhost:${SERVER_PORT}/docs"; do
-  sleep 2
-done
-```
-
-4. Leaves the rest of the accelerate launch logic intact.
-
-Do **not** leave any hardcoded `8005` in that wait loop.
-
-### 5.4) Validate the launcher patch
+### 9.4 Validate the launcher patch
 
 From `~/tutor_gdpo_project/PedagogicalRL`, run:
 
@@ -235,30 +248,312 @@ Expected result:
 - `start_rl_training.sh` should reference `localhost:${SERVER_PORT}`
 - `stop_vllm_server.sh` should contain **no** `pkill`
 
-Checklist:
-- [ ] `stop_vllm_server.sh` is PID-file based only
-- [ ] `start_vllm_server.sh` uses `exec python vllm_server.py "$@"`
-- [ ] `start_rl_training.sh` waits on `localhost:${SERVER_PORT}`
-- [ ] No hardcoded `8005` remains in the wait loop
-- [ ] No global `pkill` remains
+## 10) Add exact local-only logging fallback patches
 
----
+This section is mandatory. Do not implement local logging by interpretation. Apply the exact code changes below.
 
-## 6) Mandatory Stage 2 patch — add TutorRM to PedagogicalRL
+### 10.1 `PedagogicalRL/train_rl.py`
 
-### Target behavior
-Add one new reward channel named `tutor_rm_reward`.
+#### 10.1.1 Add imports at the top
+Add these imports if missing:
 
-It must:
-- return `0.0` unless the conversation type is `ATTEMPTED`
-- score the tutor’s first reply after the student’s initial attempt
-- optionally support `all_teacher_turns_mean` later for A3
-- use the released HF model `kpetyxova/towards-reward-modeling-tutors`
-- use the reward model exactly as a sequence classifier, not as a generative model
+```python
+import json
+from pathlib import Path
+```
 
-### 6.1) Edit `config/train_rl_model.py`
+#### 10.1.2 Right after config extraction in `main(cfg: RLModelTrainingConfig)`
 
-Inside `GenerationConfig`, add these exact fields:
+Right after:
+
+```python
+model_config = cfg.teacher_model
+train_config = cfg.train
+logging_config = cfg.logging
+lora_config = model_config.lora
+data_config = cfg.dataset
+```
+
+insert:
+
+```python
+Path(logging_config.save_dir).mkdir(parents=True, exist_ok=True)
+```
+
+#### 10.1.3 Immediately after `accelerator = Accelerator(kwargs_handlers=kwargs)`
+
+Right after:
+
+```python
+accelerator = Accelerator(kwargs_handlers=kwargs)
+```
+
+insert:
+
+```python
+use_wandb = bool(logging_config.wandb and os.getenv("WANDB_API_KEY"))
+if logging_config.wandb and not use_wandb and accelerator.is_main_process:
+    logger.warning(
+        "WANDB requested but WANDB_API_KEY is missing; continuing with local-only logging."
+    )
+
+if accelerator.is_main_process:
+    OmegaConf.save(cfg, Path(logging_config.save_dir) / "resolved_config.yaml")
+
+accelerator.wait_for_everyone()
+```
+
+#### 10.1.4 Replace the stock W&B init block
+
+Replace:
+
+```python
+if logging_config.wandb and accelerator.is_main_process:
+    wandb.init(
+        project=logging_config.wandb_project,
+        name=logging_config.wandb_run_name,
+        entity=logging_config.wandb_entity,
+        group=logging_config.run_group,
+        tags=logging_config.wandb_tags,
+        config=OmegaConf.to_object(cfg),
+    )
+```
+
+with:
+
+```python
+if use_wandb and accelerator.is_main_process:
+    wandb.init(
+        project=logging_config.wandb_project,
+        name=logging_config.wandb_run_name,
+        entity=logging_config.wandb_entity,
+        group=logging_config.run_group,
+        tags=logging_config.wandb_tags,
+        config=OmegaConf.to_object(cfg),
+    )
+```
+
+#### 10.1.5 Replace the `report_to` line in `ClassroomGRPOConfig(...)`
+
+Replace:
+
+```python
+report_to=["wandb"] if logging_config.wandb else [],
+```
+
+with:
+
+```python
+report_to=["wandb"] if use_wandb else [],
+```
+
+#### 10.1.6 Add local train summary at the end
+
+Right after:
+
+```python
+trainer.save_model(logging_config.save_dir + "/model")
+```
+
+insert:
+
+```python
+if accelerator.is_main_process:
+    summary = {
+        "output_dir": logging_config.save_dir,
+        "last_checkpoint": last_ckpt,
+        "model_name_or_path": model_config.model_name_or_path,
+        "train_results": getattr(train_results, "metrics", str(train_results)),
+    }
+    with open(Path(logging_config.save_dir) / "train_summary.json", "w") as f:
+        json.dump(summary, f, indent=2, default=str)
+```
+
+### 10.2 `PedagogicalRL/vllm_server.py`
+
+#### 10.2.1 Add imports and globals
+
+Add these imports if missing:
+
+```python
+from pathlib import Path
+```
+
+Add this global near the existing globals:
+
+```python
+use_wandb = False
+```
+
+#### 10.2.2 In `main(cfg: RLModelTrainingConfig)`
+
+Right after:
+
+```python
+config = cfg
+```
+
+insert:
+
+```python
+global use_wandb
+
+Path(cfg.logging.save_dir).mkdir(parents=True, exist_ok=True)
+Path(cfg.logging.save_dir, "server_batches").mkdir(parents=True, exist_ok=True)
+
+use_wandb = bool(cfg.logging.wandb and os.getenv("WANDB_API_KEY"))
+if cfg.logging.wandb and not use_wandb:
+    logger.warning(
+        "WANDB requested for server logging but WANDB_API_KEY is missing; continuing with local-only server logging."
+    )
+```
+
+Then replace:
+
+```python
+if cfg.logging.wandb:
+    wandb.init(
+        ...
+    )
+```
+
+with:
+
+```python
+if use_wandb:
+    wandb.init(
+        ...
+    )
+```
+
+#### 10.2.3 In `sample_conversations(...)`
+
+Right after all reward columns and `total_reward` are added to `df_table`, but before `df_table = df_table.astype(str)`, insert:
+
+```python
+batch_idx = len(classroom.conversation_sets)
+batch_path = Path(config.logging.save_dir) / "server_batches" / f"batch_{batch_idx:05d}.csv"
+df_table.to_csv(batch_path, index=False)
+```
+
+Then replace:
+
+```python
+if config.logging.wandb:
+    wandb.log(...)
+```
+
+with:
+
+```python
+if use_wandb:
+    wandb.log(...)
+```
+
+### 10.3 `PedagogicalRL/eval.py`
+
+#### 10.3.1 Add imports if missing
+
+Add:
+
+```python
+import json
+from pathlib import Path
+```
+
+#### 10.3.2 Right after config merge in `main(cfg: EvalConfig)`
+
+Right after:
+
+```python
+cfg = OmegaConf.merge(default_config, cfg)
+```
+
+insert:
+
+```python
+save_dir = Path(cfg.logging.save_dir)
+eval_dir = save_dir / "eval_outputs"
+eval_dir.mkdir(parents=True, exist_ok=True)
+
+use_wandb = bool(
+    hasattr(cfg, "logging")
+    and cfg.logging.get("wandb", False)
+    and os.getenv("WANDB_API_KEY")
+)
+
+if hasattr(cfg, "logging") and cfg.logging.get("wandb", False) and not use_wandb:
+    logger.warning(
+        "WANDB requested for eval but WANDB_API_KEY is missing; continuing with local-only eval logging."
+    )
+```
+
+#### 10.3.3 Replace the stock W&B init block
+
+Replace:
+
+```python
+if hasattr(cfg, "logging") and cfg.logging.get("wandb", False):
+    wandb.init(...)
+```
+
+with:
+
+```python
+if use_wandb:
+    wandb.init(...)
+```
+
+#### 10.3.4 After metrics are computed and `df_table` is ready
+
+Right after `df_table` contains the reward columns and before any final W&B conversation logging, insert:
+
+```python
+metrics = {
+    "delta_mean": delta_mean if cfg.recompute_initial_attempts else 0,
+    "initial_rm_rewards_mean": initial_rm_mean if cfg.recompute_initial_attempts else 0,
+    "end_rm_rewards_mean": end_rm_mean,
+    "leaked_solutions_mean": leaked_mean,
+    "rejects_pedagogical_values_mean": does_not_follow_mean,
+}
+
+if cfg.score_using_pedagogical_reward:
+    metrics["pedagogical_reward_macro_avg"] = pedagogical_reward_macro_avg
+    metrics["pedagogical_reward_micro_avg"] = pedagogical_reward_micro_avg
+
+with open(eval_dir / "metrics.json", "w") as f:
+    json.dump(metrics, f, indent=2, default=float)
+
+df_table.astype(str).to_csv(eval_dir / "conversations.csv", index=False)
+```
+
+#### 10.3.5 Replace final W&B logging
+
+Replace:
+
+```python
+if hasattr(cfg, "logging") and cfg.logging.get("wandb", False):
+    wandb.log({...})
+...
+if cfg.logging.wandb:
+    wandb.log({"conversations": wandb.Table(dataframe=df_table)})
+    wandb.finish()
+```
+
+with:
+
+```python
+if use_wandb:
+    wandb.log(metrics)
+    wandb.log({"conversations": wandb.Table(dataframe=df_table.astype(str))})
+    wandb.finish()
+```
+
+## 11) Add TutorRM config fields
+
+Edit `PedagogicalRL/config/train_rl_model.py`.
+
+Inside `GenerationConfig`, add:
 
 ```python
 use_tutor_rm: bool = True
@@ -267,35 +562,43 @@ tutor_rm_max_length: int = 1024
 tutor_rm_mode: str = "first_teacher_only"
 ```
 
-Inside `TrainConfig`, add these exact fields:
+Inside `TrainConfig`, add:
 
 ```python
 use_gdpo: bool = False
 gdpo_eps: float = 1e-4
 reward_weights: list[float] = field(
-    default_factory=lambda: [1.0, 0.5, 1.0, 1.0, 1.0]
+    default_factory=lambda: [1.0, 0.25, 1.0, 1.0, 1.0]
 )
 ```
 
-If `field` is not imported, import it from `dataclasses`.
-
-Interpretation of `reward_weights`:
+The reward order is fixed as:
 
 ```text
 [end_rm_reward, tutor_rm_reward, thinking_reward, end_of_conversation_reward, length_reward]
 ```
 
-### 6.2) Edit `src/classroom.py`
+## 12) Add TutorRM implementation
 
-#### Imports
-Add the missing import if needed:
+### Target behavior
+Add one new reward channel named `tutor_rm_reward`.
+
+It must:
+- return `0.0` unless the conversation type is `ATTEMPTED`
+- score the tutor’s first reply after the student’s initial attempt
+- Support `all_teacher_turns_mean` later for A3
+- use the released HF model `kpetyxova/towards-reward-modeling-tutors`
+- use the reward model exactly as a sequence classifier, not as a generative model
+
+### 12.1 `PedagogicalRL/src/classroom.py`
+
+Use the author-faithful load path:
 
 ```python
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 ```
 
-#### In `Classroom.__init__`
-After the existing reward model setup, add TutorRM setup:
+In `Classroom.__init__`, add:
 
 ```python
 self.use_tutor_rm = generation_cfg.use_tutor_rm
@@ -307,49 +610,53 @@ if self.use_tutor_rm:
         generation_cfg.tutor_rm_model_name_or_path,
         use_fast=False,
     )
+    if self.tutor_rm_tokenizer.pad_token is None:
+        self.tutor_rm_tokenizer.pad_token = self.tutor_rm_tokenizer.eos_token
     self.tutor_rm_tokenizer.padding_side = "right"
     self.tutor_rm_tokenizer.truncation_side = "left"
 
     self.tutor_rm_model = AutoModelForSequenceClassification.from_pretrained(
-        generation_cfg.tutor_rm_model_name_or_path,
-        torch_dtype=torch.bfloat16,
-        device_map="cuda:0",
+        generation_cfg.tutor_rm_model_name_or_path
     )
+    self.tutor_rm_model.to(self.device)
     self.tutor_rm_model.eval()
 ```
 
-#### Add helper methods
-Add these two methods inside `Classroom`.
+Add these methods:
 
 ```python
+def _serialize_tutor_rm_messages(self, conversation, teacher_response):
+    hidden = conversation._get_hidden_conversation()
+    student_msgs = [m["content"] for m in hidden if m["role"] == "student"]
+    if len(student_msgs) == 0:
+        return None
+
+    user_content = (
+        f"Problem: {conversation.problem}\n\n"
+        f"Student attempt: {student_msgs[0]}\n\n"
+        f"Gold solution: {conversation.answer}"
+    )
+    return [
+        {"role": "user", "content": user_content},
+        {"role": "assistant", "content": teacher_response},
+    ]
+
+
 def _score_single_tutor_rm(self, conversation) -> float:
     if conversation.type != ConversationType.ATTEMPTED:
         return 0.0
 
     hidden = conversation._get_hidden_conversation()
-    student_msgs = [m["content"] for m in hidden if m["role"] == "student"]
     teacher_msgs = [m["content"] for m in hidden if m["role"] == "teacher"]
-
-    if len(student_msgs) == 0 or len(teacher_msgs) == 0:
+    if len(teacher_msgs) == 0:
         return 0.0
 
-    student_attempt = student_msgs[0]
-    if self.tutor_rm_mode == "all_teacher_turns_mean":
-        candidate_teacher_responses = teacher_msgs
-    else:
-        candidate_teacher_responses = [teacher_msgs[0]]
-
+    candidates = teacher_msgs if self.tutor_rm_mode == "all_teacher_turns_mean" else [teacher_msgs[0]]
     scores = []
-    for teacher_response in candidate_teacher_responses:
-        user_content = (
-            f"Problem: {conversation.problem}\n\n"
-            f"Student attempt: {student_attempt}\n\n"
-            f"Gold Solution: {conversation.answer}"
-        )
-        messages = [
-            {"role": "user", "content": user_content},
-            {"role": "assistant", "content": teacher_response},
-        ]
+    for teacher_response in candidates:
+        messages = self._serialize_tutor_rm_messages(conversation, teacher_response)
+        if messages is None:
+            continue
         inputs = self.tutor_rm_tokenizer.apply_chat_template(
             messages,
             add_generation_prompt=False,
@@ -358,15 +665,11 @@ def _score_single_tutor_rm(self, conversation) -> float:
             truncation=True,
             max_length=self.tutor_rm_max_length,
         ).to(self.tutor_rm_model.device)
-
         with torch.no_grad():
             logit = float(self.tutor_rm_model(inputs).logits.squeeze())
+        scores.append(logit)
 
-        # chosen implementation detail: clip into [-1, 1] so the new reward
-        # stays on a controlled scale before trainer weighting
-        scores.append(max(-1.0, min(1.0, logit)))
-
-    return float(sum(scores) / len(scores))
+    return float(sum(scores) / len(scores)) if scores else 0.0
 
 
 def get_tutor_rm_reward(self, conversations):
@@ -375,58 +678,42 @@ def get_tutor_rm_reward(self, conversations):
     return [self._score_single_tutor_rm(c) for c in conversations]
 ```
 
-### 6.3) Edit `vllm_server.py`
+Main path rules:
+- use raw logits
+- no clipping
+- no `device_map="cuda:0"`
+- no hardcoded TutorRM weight inside classroom
 
-Mirror the existing reward endpoint pattern.
-
-Add a new endpoint named:
+### 12.2 `PedagogicalRL/vllm_server.py`
+Add endpoint:
 
 ```python
 @app.post("/get_tutor_rm_reward")
 ```
 
-It must:
-- parse the incoming conversation batch exactly like the existing reward endpoints
-- call `classroom.get_tutor_rm_reward(conversations)`
-- return a JSON dict with the list of rewards
+It must mirror the existing reward endpoint pattern and return a **plain list**, not a JSON dict.
 
-Then extend the server-side reward dataframe so it now includes:
-- `end_rm_reward`
-- `tutor_rm_reward`
-- `thinking_reward`
-- `end_of_conversation_reward`
-- `length_reward`
+Extend the reward dataframe / reward collection to include `tutor_rm_reward`.
+The stock `total_reward` in the server can stay as-is for logging; training itself must use the `reward_funcs` list order below.
 
-And define:
+### 12.3 `PedagogicalRL/src/vllm/client.py`
+Add:
 
 ```python
-total_reward = (
-    end_rm_reward
-    + tutor_rm_reward
-    + thinking_reward
-    + end_of_conversation_reward
-    + length_reward
-)
-```
-
-### 6.4) Edit `src/vllm/client.py`
-
-Add a client wrapper that mirrors the style of the existing reward RPC functions:
-
-```python
-def get_tutor_rm_reward(conversations: List[str], server_port: int = 8005):
+def get_tutor_rm_reward(conversations, server_port: int = 8005):
     ...
 ```
 
-It must hit:
+It must call:
 
 ```text
 http://localhost:{server_port}/get_tutor_rm_reward
 ```
 
-### 6.5) Edit `src/utils/utils.py`
+and return the plain list from the response.
 
-Add a wrapper constructor in the same style as the existing reward constructors:
+### 12.4 `PedagogicalRL/src/utils/utils.py`
+Add:
 
 ```python
 def construct_tutor_rm_reward_func(server_port: int = 8005):
@@ -435,11 +722,8 @@ def construct_tutor_rm_reward_func(server_port: int = 8005):
     return tutor_rm_reward_func
 ```
 
-### 6.6) Edit `train_rl.py`
-
-1. Import the new reward constructor.
-2. Instantiate it with `cfg.generation.server_port`.
-3. Insert it into the reward list in this exact order:
+### 12.5 `PedagogicalRL/train_rl.py`
+Import the constructor and build reward funcs in this exact order:
 
 ```python
 reward_funcs = [
@@ -451,23 +735,12 @@ reward_funcs = [
 ]
 ```
 
-Checklist:
-- [ ] `GenerationConfig` has TutorRM fields
-- [ ] `TrainConfig` has `use_gdpo`, `gdpo_eps`, `reward_weights`
-- [ ] `Classroom` loads the TutorRM classifier
-- [ ] `Classroom.get_tutor_rm_reward(...)` exists
-- [ ] `vllm_server.py` exposes `/get_tutor_rm_reward`
-- [ ] `src/vllm/client.py` has a TutorRM client wrapper
-- [ ] `src/utils/utils.py` has `construct_tutor_rm_reward_func`
-- [ ] `train_rl.py` includes TutorRM in `reward_funcs`
+Pass `reward_weights=cfg.train.reward_weights` into `ClassroomGRPOConfig(...)`.
 
----
+## 13) Add GDPO
 
-## 7) Mandatory Stage 3 patch — add GDPO to the trainer
-
-### 7.1) Edit `src/grpo/config.py`
-
-Add these config fields if they are not already present:
+### 13.1 `PedagogicalRL/src/grpo/config.py`
+Add:
 
 ```python
 reward_weights: Optional[list[float]] = field(
@@ -479,13 +752,14 @@ apply_gdpo: bool = field(
     default=False,
     metadata={"help": "Apply GDPO multi-reward normalization."},
 )
+
+gdpo_eps: float = field(
+    default=1e-4,
+    metadata={"help": "Stability epsilon used by GDPO normalization."},
+)
 ```
 
-If the file already contains a similar field name, reuse the same name consistently. The implementation below assumes `apply_gdpo` and `reward_weights` are the active names.
-
-### 7.2) Edit `src/grpo/trainer.py`
-
-#### In `__init__`
+### 13.2 `PedagogicalRL/src/grpo/trainer.py`
 Right after `self.reward_funcs = reward_funcs`, add:
 
 ```python
@@ -501,14 +775,7 @@ else:
 self.apply_gdpo = bool(getattr(self.args, "apply_gdpo", False))
 ```
 
-#### In the reward-to-advantage block
-Replace the stock block that currently:
-- gathers `rewards_per_func`
-- sums across reward functions
-- computes grouped mean and std on the summed scalar rewards
-- forms `advantages`
-
-with this exact two-branch logic.
+Replace the stock reward-to-advantage block with:
 
 ```python
 rewards_per_func = gather(rewards_per_func)
@@ -539,85 +806,57 @@ if self.apply_gdpo and len(self.reward_weights) > 1:
         all_reward_advantage.append(each_reward_advantage)
 
     combined_reward_advantage = torch.stack(all_reward_advantage, dim=1)
-
-    pre_bn_advantages = (
-        combined_reward_advantage * weights
-    ).nansum(dim=1)
-
+    pre_bn_advantages = (combined_reward_advantage * weights).nansum(dim=1)
     bn_advantages_mean = pre_bn_advantages.mean()
     bn_advantages_std = pre_bn_advantages.std()
+    advantages = (pre_bn_advantages - bn_advantages_mean) / (
+        bn_advantages_std + self.args.gdpo_eps
+    )
 
-    advantages = (
-        pre_bn_advantages - bn_advantages_mean
-    ) / (bn_advantages_std + self.args.gdpo_eps)
-
-    # keep raw weighted total reward for logging
     rewards = (rewards_per_func * weights).nansum(dim=1)
-
 else:
     rewards = (rewards_per_func * weights).nansum(dim=1)
-
     mean_grouped_rewards = rewards.view(-1, self.num_generations).mean(dim=1)
     std_grouped_rewards = rewards.view(-1, self.num_generations).std(dim=1)
-
     mean_grouped_rewards = mean_grouped_rewards.repeat_interleave(
         self.num_generations, dim=0
     )
     std_grouped_rewards = std_grouped_rewards.repeat_interleave(
         self.num_generations, dim=0
     )
-
     advantages = rewards - mean_grouped_rewards
     if self.args.scale_rewards:
         advantages = advantages / (std_grouped_rewards + self.args.gdpo_eps)
 ```
 
-#### In trainer config wiring
-Make sure `ClassroomGRPOConfig(...)` receives:
-- `reward_weights=cfg.train.reward_weights`
-- `apply_gdpo=cfg.train.use_gdpo`
-- `gdpo_eps=cfg.train.gdpo_eps`
+### 13.3 `PedagogicalRL/train_rl.py`
+When constructing `ClassroomGRPOConfig(...)`, pass:
 
-If `ClassroomGRPOConfig` is constructed inside `train_rl.py`, pass those fields there.
+```python
+reward_weights=cfg.train.reward_weights,
+apply_gdpo=cfg.train.use_gdpo,
+gdpo_eps=cfg.train.gdpo_eps,
+```
 
-Checklist:
-- [ ] `src/grpo/config.py` accepts `reward_weights`
-- [ ] `src/grpo/config.py` accepts `apply_gdpo`
-- [ ] `src/grpo/trainer.py` stores `self.reward_weights`
-- [ ] `src/grpo/trainer.py` stores `self.apply_gdpo`
-- [ ] Trainer has a stock branch and a GDPO branch
-- [ ] `train_rl.py` passes `reward_weights`, `apply_gdpo`, `gdpo_eps`
+## 14) Generate reduced one-GPU configs
 
----
-
-## 8) Create the reduced one-GPU configs
-
-### 8.1) Create `config/deepspeed/zero3_1GPU.yaml`
-
-Generate it from the stock 4-GPU config.
-
-Run this exact script:
+### 14.1 `config/deepspeed/zero3_1GPU.yaml`
 
 ```bash
 cd ~/tutor_gdpo_project/PedagogicalRL
 python - <<'PY'
 from pathlib import Path
 import yaml
-
 src = Path('config/deepspeed/zero3_4GPU.yaml')
 dst = Path('config/deepspeed/zero3_1GPU.yaml')
-text = src.read_text()
-# source file is one-line YAML; safe_load handles it
-cfg = yaml.safe_load(text)
+cfg = yaml.safe_load(src.read_text())
 cfg['num_processes'] = 1
 dst.write_text(yaml.safe_dump(cfg, sort_keys=False))
 print('wrote', dst)
 PY
 ```
 
-### 8.2) Create `config/train_rl/7b_tutorrm_grpo.yaml` and `7b_tutorrm_gdpo.yaml`
-
-Run this exact script:
+### 14.2 `config/train_rl/7b_tutorrm_grpo.yaml` and `7b_tutorrm_gdpo.yaml`
 
 ```bash
 cd ~/tutor_gdpo_project/PedagogicalRL
@@ -660,7 +899,7 @@ common = {
         'per_device_train_batch_size': 1,
         'max_steps': 80,
         'gdpo_eps': 1e-4,
-        'reward_weights': [1.0, 0.5, 1.0, 1.0, 1.0],
+        'reward_weights': [1.0, 0.25, 1.0, 1.0, 1.0],
         'save_policy_to_disk_every_n': 5,
     },
     'generation': {
@@ -705,7 +944,7 @@ for name, port, use_gdpo, save_dir in [
 PY
 ```
 
-### 8.3) Validation
+### 14.3 Validation
 
 Run:
 
@@ -723,99 +962,107 @@ PY
 ```
 
 Checklist:
-- [ ] `zero3_1GPU.yaml` exists
-- [ ] `7b_tutorrm_grpo.yaml` exists
-- [ ] `7b_tutorrm_gdpo.yaml` exists
-- [ ] GRPO config uses port `8005`
-- [ ] GDPO config uses port `8006`
-- [ ] both configs start from `eth-nlped/TutorRL-7B`
-- [ ] both configs set `max_steps: 80`
+- `zero3_1GPU.yaml` exists
+- `7b_tutorrm_grpo.yaml` exists
+- `7b_tutorrm_gdpo.yaml` exists
+- GRPO config uses port `8005`
+- GDPO config uses port `8006`
+- both configs start from `eth-nlped/TutorRL-7B`
+- both configs set `max_steps: 80`
 
----
+## 15) Run A0 baselines
 
-## 9) Run A0 baselines before any training
+### 15.0 Mandatory benchmark server lifecycle rule
 
-### 9.1) Baseline A0a — TutorRL-7B
+For every MathTutorBench run (A0a, A0b, A1 external, A2 external, A3 external), do not leave a vLLM benchmark server running across runs.
+Always launch benchmark servers in the background with a PID file, wait on `/v1/models`, and kill that exact PID before starting the next benchmark server.
+
+Create the PID directory once:
+
+```bash
+cd ~/tutor_gdpo_project/mathtutorbench
+mkdir -p pids
+```
+
+### 15.1 TutorRL-7B baseline
 
 ```bash
 cd ~/tutor_gdpo_project/mathtutorbench
 source ~/tutor_gdpo_project/.venv/bin/activate
+mkdir -p pids
 
 vllm serve eth-nlped/TutorRL-7B \
+  --served-model-name TutorRL-7B \
   --seed 42 \
-  --tensor-parallel-size 1
+  --tensor-parallel-size 1 > serve_TutorRL-7B.log 2>&1 &
+echo $! > pids/TutorRL-7B.pid
+
+until curl -fsS http://localhost:8000/v1/models >/dev/null; do
+  sleep 5
+done
+
+/usr/bin/time -v ./run_mathtutorbench_suite.sh TutorRL-7B http://localhost:8000/v1 results 2>&1 | tee baseline_tutorrly7b_bench.log
+
+kill "$(cat pids/TutorRL-7B.pid)" || true
+sleep 5
+kill -9 "$(cat pids/TutorRL-7B.pid)" 2>/dev/null || true
+rm -f pids/TutorRL-7B.pid
 ```
 
-In a second shell:
+### 15.2 TutorRL-7B-think baseline
 
 ```bash
 cd ~/tutor_gdpo_project/mathtutorbench
 source ~/tutor_gdpo_project/.venv/bin/activate
+mkdir -p pids
 
-python main.py \
-  --tasks problem_solving.yaml,socratic_questioning.yaml,student_solution_correctness.yaml,mistake_location.yaml,mistake_correction.yaml,scaffolding_generation.yaml,pedagogy_following.yaml,scaffolding_generation_hard.yaml,pedagogy_following_hard.yaml \
-  --provider completion_api \
-  --model_args base_url=http://localhost:8000/v1,model=eth-nlped/TutorRL-7B,is_chat=True,temperature=0.0,max_tokens=1024
-
-python reward_model/compute_scaffolding_score.py \
-  --data_path results/generations-eth-nlped-TutorRL-7B.json
-```
-
-Stop the server.
-
-### 9.2) Baseline A0b — TutorRL-7B-think
-
-```bash
 vllm serve eth-nlped/TutorRL-7B-think \
+  --served-model-name TutorRL-7B-think \
   --seed 42 \
-  --tensor-parallel-size 1
+  --tensor-parallel-size 1 > serve_TutorRL-7B-think.log 2>&1 &
+echo $! > pids/TutorRL-7B-think.pid
+
+until curl -fsS http://localhost:8000/v1/models >/dev/null; do
+  sleep 5
+done
+
+/usr/bin/time -v ./run_mathtutorbench_suite.sh TutorRL-7B-think http://localhost:8000/v1 results 2>&1 | tee baseline_tutorrly7b_think_bench.log
+
+kill "$(cat pids/TutorRL-7B-think.pid)" || true
+sleep 5
+kill -9 "$(cat pids/TutorRL-7B-think.pid)" 2>/dev/null || true
+rm -f pids/TutorRL-7B-think.pid
 ```
 
-In a second shell:
-
-```bash
-python main.py \
-  --tasks problem_solving.yaml,socratic_questioning.yaml,student_solution_correctness.yaml,mistake_location.yaml,mistake_correction.yaml,scaffolding_generation.yaml,pedagogy_following.yaml,scaffolding_generation_hard.yaml,pedagogy_following_hard.yaml \
-  --provider completion_api \
-  --model_args base_url=http://localhost:8000/v1,model=eth-nlped/TutorRL-7B-think,is_chat=True,temperature=0.0,max_tokens=1024
-
-python reward_model/compute_scaffolding_score.py \
-  --data_path results/generations-eth-nlped-TutorRL-7B-think.json
-```
-
-Optional but recommended internal baseline eval:
+### 15.3 Mandatory internal baseline evals
 
 ```bash
 cd ~/tutor_gdpo_project/PedagogicalRL
 source ~/tutor_gdpo_project/.venv/bin/activate
-
-python eval.py --config-name TutorRL.yaml logging.wandb=false
-python eval.py --config-name TutorRL-think.yaml logging.wandb=false
+mkdir -p logs
+python eval.py \
+  --config-name TutorRL.yaml \
+  logging.save_dir=outputs/baseline_tutorrly7b_eval \
+  logging.wandb=false \
+  2>&1 | tee logs/internal_tutorrly7b.log
+python eval.py \
+  --config-name TutorRL-think.yaml \
+  logging.save_dir=outputs/baseline_tutorrly7b_think_eval \
+  logging.wandb=false \
+  2>&1 | tee logs/internal_tutorrly7b_think.log
 ```
 
-Checklist:
-- [ ] A0a MathTutorBench results exist
-- [ ] A0b MathTutorBench results exist
-- [ ] scaffolding score computed for both baselines
-- [ ] optional internal baseline evals completed
-
----
-
-## 10) Run 5-step smoke tests for A1 and A2
-
-Before smoke tests, create logs dir.
+## 16) Run 5-step smoke tests
 
 ```bash
 cd ~/tutor_gdpo_project/PedagogicalRL
 mkdir -p logs
+source ~/tutor_gdpo_project/.venv/bin/activate
 ```
 
-### 10.1) Smoke A1 — TutorRM + stock GRPO on GPU 0
+### 16.1 A1 smoke on GPU 0
 
 ```bash
-cd ~/tutor_gdpo_project/PedagogicalRL
-source ~/tutor_gdpo_project/.venv/bin/activate
-
 export SERVER_PORT=8005
 CUDA_VISIBLE_DEVICES=0 /usr/bin/time -v ./start_rl_training.sh \
   --config_file config/deepspeed/zero3_1GPU.yaml \
@@ -825,12 +1072,9 @@ CUDA_VISIBLE_DEVICES=0 /usr/bin/time -v ./start_rl_training.sh \
   2>&1 | tee logs/smoke_grpo.log
 ```
 
-### 10.2) Smoke A2 — TutorRM + GDPO on GPU 1
+### 16.2 A2 smoke on GPU 1
 
 ```bash
-cd ~/tutor_gdpo_project/PedagogicalRL
-source ~/tutor_gdpo_project/.venv/bin/activate
-
 export SERVER_PORT=8006
 CUDA_VISIBLE_DEVICES=1 /usr/bin/time -v ./start_rl_training.sh \
   --config_file config/deepspeed/zero3_1GPU.yaml \
@@ -840,14 +1084,13 @@ CUDA_VISIBLE_DEVICES=1 /usr/bin/time -v ./start_rl_training.sh \
   2>&1 | tee logs/smoke_gdpo.log
 ```
 
-### 10.3) Smoke-test success criteria
-
-Both smoke logs must show all of the following:
-- server starts successfully
-- trainer connects successfully
-- reward endpoint `/get_tutor_rm_reward` is called without error
-- at least one checkpoint save occurs
-- process exits cleanly
+Success criteria:
+- server starts
+- training connects
+- `/get_tutor_rm_reward` works
+- checkpoint saves
+- no port collision
+- no shape error in GDPO
 
 Checklist:
 - [ ] A1 smoke passes
@@ -857,25 +1100,19 @@ Checklist:
 - [ ] TutorRM scoring path works
 - [ ] GDPO branch runs without tensor-shape error
 
----
+## 17) Run full A1 and A2
 
-## 11) Run full A1 and A2 in parallel
-
-### 11.1) Optional GPU usage logging
-
-Start these in separate shells before training:
+Start GPU logging first:
 
 ```bash
+cd ~/tutor_gdpo_project/PedagogicalRL
 nvidia-smi --query-gpu=timestamp,index,utilization.gpu,memory.used --format=csv -l 30 > logs/gpu0.csv
 nvidia-smi --query-gpu=timestamp,index,utilization.gpu,memory.used --format=csv -l 30 > logs/gpu1.csv
 ```
 
-### 11.2) Final A1 — TutorRM + stock GRPO
+### 17.1 A1 final
 
 ```bash
-cd ~/tutor_gdpo_project/PedagogicalRL
-source ~/tutor_gdpo_project/.venv/bin/activate
-
 export SERVER_PORT=8005
 CUDA_VISIBLE_DEVICES=0 /usr/bin/time -v ./start_rl_training.sh \
   --config_file config/deepspeed/zero3_1GPU.yaml \
@@ -884,12 +1121,9 @@ CUDA_VISIBLE_DEVICES=0 /usr/bin/time -v ./start_rl_training.sh \
   2>&1 | tee logs/final_grpo.log
 ```
 
-### 11.3) Final A2 — TutorRM + GDPO
+### 17.2 A2 final
 
 ```bash
-cd ~/tutor_gdpo_project/PedagogicalRL
-source ~/tutor_gdpo_project/.venv/bin/activate
-
 export SERVER_PORT=8006
 CUDA_VISIBLE_DEVICES=1 /usr/bin/time -v ./start_rl_training.sh \
   --config_file config/deepspeed/zero3_1GPU.yaml \
@@ -898,18 +1132,7 @@ CUDA_VISIBLE_DEVICES=1 /usr/bin/time -v ./start_rl_training.sh \
   2>&1 | tee logs/final_gdpo.log
 ```
 
-Checklist:
-- [ ] A1 full run completes
-- [ ] A2 full run completes
-- [ ] checkpoints written to `outputs/tutorrm_grpo` and `outputs/tutorrm_gdpo`
-- [ ] logs captured
-- [ ] GPU usage logs captured
-
----
-
-## 12) Evaluate both trained models internally
-
-### 12.1) A1 internal eval
+## 18) Evaluate trained models internally
 
 ```bash
 cd ~/tutor_gdpo_project/PedagogicalRL
@@ -918,16 +1141,16 @@ source ~/tutor_gdpo_project/.venv/bin/activate
 python eval.py \
   --config-name TutorRL.yaml \
   teacher_model.model_name_or_path=outputs/tutorrm_grpo/model \
-  logging.wandb=false
-```
+  logging.save_dir=outputs/tutorrm_grpo \
+  logging.wandb=false \
+  2>&1 | tee logs/internal_tutorrm_grpo.log
 
-### 12.2) A2 internal eval
-
-```bash
 python eval.py \
   --config-name TutorRL.yaml \
   teacher_model.model_name_or_path=outputs/tutorrm_gdpo/model \
-  logging.wandb=false
+  logging.save_dir=outputs/tutorrm_gdpo \
+  logging.wandb=false \
+  2>&1 | tee logs/internal_tutorrm_gdpo.log
 ```
 
 Collect these metrics for each trained model:
@@ -941,51 +1164,56 @@ Checklist:
 - [ ] A2 internal eval complete
 - [ ] metric summaries saved
 
----
+## 19) Evaluate trained models externally on MathTutorBench
 
-## 13) Evaluate both trained models externally on MathTutorBench
-
-### 13.1) A1 external eval
+### 19.1 A1 external
 
 ```bash
 cd ~/tutor_gdpo_project/mathtutorbench
 source ~/tutor_gdpo_project/.venv/bin/activate
+mkdir -p pids
 
 vllm serve ~/tutor_gdpo_project/PedagogicalRL/outputs/tutorrm_grpo/model \
+  --served-model-name tutorrm-grpo \
   --seed 42 \
-  --tensor-parallel-size 1
+  --tensor-parallel-size 1 > serve_tutorrm_grpo.log 2>&1 &
+echo $! > pids/tutorrm-grpo.pid
+
+until curl -fsS http://localhost:8000/v1/models >/dev/null; do
+  sleep 5
+done
+
+/usr/bin/time -v ./run_mathtutorbench_suite.sh tutorrm-grpo http://localhost:8000/v1 results 2>&1 | tee tutorrm_grpo_bench.log
+
+kill "$(cat pids/tutorrm-grpo.pid)" || true
+sleep 5
+kill -9 "$(cat pids/tutorrm-grpo.pid)" 2>/dev/null || true
+rm -f pids/tutorrm-grpo.pid
 ```
 
-In a second shell:
+### 19.2 A2 external
 
 ```bash
-python main.py \
-  --tasks problem_solving.yaml,socratic_questioning.yaml,student_solution_correctness.yaml,mistake_location.yaml,mistake_correction.yaml,scaffolding_generation.yaml,pedagogy_following.yaml,scaffolding_generation_hard.yaml,pedagogy_following_hard.yaml \
-  --provider completion_api \
-  --model_args base_url=http://localhost:8000/v1,model=tutorrm-grpo,is_chat=True,temperature=0.0,max_tokens=1024
+cd ~/tutor_gdpo_project/mathtutorbench
+source ~/tutor_gdpo_project/.venv/bin/activate
+mkdir -p pids
 
-python reward_model/compute_scaffolding_score.py \
-  --data_path results/generations-tutorrm-grpo.json
-```
-
-### 13.2) A2 external eval
-
-```bash
 vllm serve ~/tutor_gdpo_project/PedagogicalRL/outputs/tutorrm_gdpo/model \
+  --served-model-name tutorrm-gdpo \
   --seed 42 \
-  --tensor-parallel-size 1
-```
+  --tensor-parallel-size 1 > serve_tutorrm_gdpo.log 2>&1 &
+echo $! > pids/tutorrm-gdpo.pid
 
-In a second shell:
+until curl -fsS http://localhost:8000/v1/models >/dev/null; do
+  sleep 5
+done
 
-```bash
-python main.py \
-  --tasks problem_solving.yaml,socratic_questioning.yaml,student_solution_correctness.yaml,mistake_location.yaml,mistake_correction.yaml,scaffolding_generation.yaml,pedagogy_following.yaml,scaffolding_generation_hard.yaml,pedagogy_following_hard.yaml \
-  --provider completion_api \
-  --model_args base_url=http://localhost:8000/v1,model=tutorrm-gdpo,is_chat=True,temperature=0.0,max_tokens=1024
+/usr/bin/time -v ./run_mathtutorbench_suite.sh tutorrm-gdpo http://localhost:8000/v1 results 2>&1 | tee tutorrm_gdpo_bench.log
 
-python reward_model/compute_scaffolding_score.py \
-  --data_path results/generations-tutorrm-gdpo.json
+kill "$(cat pids/tutorrm-gdpo.pid)" || true
+sleep 5
+kill -9 "$(cat pids/tutorrm-gdpo.pid)" 2>/dev/null || true
+rm -f pids/tutorrm-gdpo.pid
 ```
 
 Collect these metrics for each trained model:
@@ -1005,25 +1233,75 @@ Checklist:
 - [ ] scaffolding score computed for both
 - [ ] result JSONs saved
 
----
+## 20) Choose the winner and run LightEval once
 
-## 14) Choose the winner and run LightEval sanity only once
-
-Pick the winner by this exact ranking rule:
-
+Winner rule:
 1. higher `mistake_correction`
-2. if tied, higher mean over:
-   - mistake_correction
-   - mistake_location
-   - pedagogy_following
-   - scaffolding_generation
+2. if tied, higher mean over `mistake_correction`, `mistake_location`, `pedagogy_following`, `scaffolding_generation`
 3. if still tied, lower train wall-clock time
 
-Suppose the winner path is stored in:
+cd ~/tutor_gdpo_project
+source ~/tutor_gdpo_project/.venv/bin/activate
 
-```bash
-export WINNER_MODEL=~/tutor_gdpo_project/PedagogicalRL/outputs/tutorrm_gdpo/model
-```
+python aggregate_results.py --project-root ~/tutor_gdpo_project --output-dir ~/tutor_gdpo_project/summary_tables
+
+eval "$(python - <<'PY'
+import csv
+from pathlib import Path
+
+root = Path('~/tutor_gdpo_project').expanduser()
+
+external = {}
+with open(root / 'summary_tables' / 'results_external.csv', newline='') as f:
+    for row in csv.DictReader(f):
+        if row['model'] in {'TutorRM+GRPO', 'TutorRM+GDPO'}:
+            external[row['model']] = row
+
+eff = {}
+with open(root / 'summary_tables' / 'results_efficiency.csv', newline='') as f:
+    for row in csv.DictReader(f):
+        eff[row['model']] = row
+
+def tuple_score(row):
+    primary = float(row['mistake_correction'])
+    secondary = (
+        float(row['mistake_correction']) +
+        float(row['mistake_location']) +
+        float(row['pedagogy_following']) +
+        float(row['scaffolding_generation'])
+    ) / 4.0
+    return (primary, secondary)
+
+candidates = ['TutorRM+GRPO', 'TutorRM+GDPO']
+best = candidates[0]
+
+for cand in candidates[1:]:
+    if tuple_score(external[cand]) > tuple_score(external[best]):
+        best = cand
+    elif tuple_score(external[cand]) == tuple_score(external[best]):
+        if float(eff[cand]['train_hours']) < float(eff[best]['train_hours']):
+            best = cand
+
+if best == 'TutorRM+GDPO':
+    alias = 'tutorrm-gdpo'
+    model = str(root / 'PedagogicalRL' / 'outputs' / 'tutorrm_gdpo' / 'model')
+    config = '7b_tutorrm_gdpo.yaml'
+else:
+    alias = 'tutorrm-grpo'
+    model = str(root / 'PedagogicalRL' / 'outputs' / 'tutorrm_grpo' / 'model')
+    config = '7b_tutorrm_grpo.yaml'
+
+print(f'export WINNER_LABEL=\"{best}\"')
+print(f'export WINNER_ALIAS=\"{alias}\"')
+print(f'export WINNER_MODEL=\"{model}\"')
+print(f'export WINNER_CONFIG=\"{config}\"')
+PY
+)"
+
+echo "Winner label: ${WINNER_LABEL}"
+echo "Winner alias: ${WINNER_ALIAS}"
+echo "Winner model: ${WINNER_MODEL}"
+echo "Winner config: ${WINNER_CONFIG}"
 
 Run LightEval only on the winner:
 
@@ -1034,65 +1312,25 @@ lighteval vllm \
   --use-chat-template
 ```
 
-Checklist:
-- [ ] winner selected using the exact rule above
-- [ ] winner LightEval complete
-- [ ] sanity metrics saved
+## 21) Aggregate final tables
 
----
-
-## 15) A3 only if there is time
-
-Run A3 only after A1 and A2 are fully complete and evaluated.
-
-### A3 change
-Create one extra config from the winner config with:
-
-```yaml
-generation:
-  tutor_rm_mode: all_teacher_turns_mean
+```bash
+cd ~/tutor_gdpo_project
+source ~/tutor_gdpo_project/.venv/bin/activate
+python aggregate_results.py --project-root ~/tutor_gdpo_project --output-dir ~/tutor_gdpo_project/summary_tables
 ```
 
-Everything else stays identical.
+Expected outputs:
+- `summary_tables/results_internal.csv`
+- `summary_tables/results_external.csv`
+- `summary_tables/results_efficiency.csv`
 
-Run exactly one additional 40-step continuation from the same base checkpoint `eth-nlped/TutorRL-7B` and evaluate only on:
-- mistake_correction
-- mistake_location
-- pedagogy_following
-- scaffolding_generation
+### 21.1 Expected CSV schema
 
-Do **not** run full A3 if A1/A2 already consumed the available time budget.
+Copy from old `AGENTS.md`:
 
----
+`results_internal.csv`
 
-## 16) Required output artifacts
-
-The agent must leave behind these files/directories:
-
-```text
-~/tutor_gdpo_project/PedagogicalRL/
-  logs/
-    smoke_grpo.log
-    smoke_gdpo.log
-    final_grpo.log
-    final_gdpo.log
-    gpu0.csv
-    gpu1.csv
-  outputs/
-    tutorrm_grpo/
-    tutorrm_gdpo/
-
-~/tutor_gdpo_project/mathtutorbench/
-  results/
-    generations-eth-nlped-TutorRL-7B.json
-    generations-eth-nlped-TutorRL-7B-think.json
-    generations-tutorrm-grpo.json
-    generations-tutorrm-gdpo.json
-```
-
-And the agent must create these summary tables as CSV:
-
-### `results_internal.csv`
 Columns:
 - model
 - delta_solve_rate
@@ -1106,7 +1344,8 @@ Rows:
 - TutorRM+GRPO
 - TutorRM+GDPO
 
-### `results_external.csv`
+`results_external.csv`
+
 Columns:
 - model
 - problem_solving
@@ -1125,7 +1364,8 @@ Rows:
 - TutorRM+GRPO
 - TutorRM+GDPO
 
-### `results_efficiency.csv`
+`results_efficiency.csv`
+
 Columns:
 - model
 - train_hours
@@ -1137,9 +1377,7 @@ Rows:
 - TutorRM+GRPO
 - TutorRM+GDPO
 
----
-
-## 17) Final write-up structure the agent must prepare
+### 21.2 Final write-up structure
 
 Prepare a short report in this exact section order.
 
@@ -1155,7 +1393,7 @@ Prepare a short report in this exact section order.
 3. **Our changes**
    - add TutorRM reward to PedagogicalRL
    - compare stock summed-reward GRPO vs GDPO
-   - optional first-teacher-only vs all-teacher-turns variant
+   - first-teacher-only vs all-teacher-turns variant
 
 4. **Implementation**
    - exact files edited
@@ -1175,47 +1413,224 @@ Prepare a short report in this exact section order.
    - whether TutorRM helps
    - whether GDPO helps more than stock GRPO in this tutoring multi-reward setup
 
----
+## 22) A3 only after A1 and A2 done, including full evaluation
 
-## 18) One-screen execution checklist
+Run A3 only after Sections 18, 19, 20, and 21 are complete and `WINNER_ALIAS`, `WINNER_MODEL`, and `WINNER_CONFIG` have already been set by Section 20.
 
-### Setup
-- [ ] clone the three repos
-- [ ] create Python 3.11 venv
-- [ ] install all requirements
+### 22.1 Generate the A3 config from the winner config
 
-### Patch launcher
-- [ ] replace `stop_vllm_server.sh`
-- [ ] replace `start_vllm_server.sh`
-- [ ] patch `start_rl_training.sh`
+```bash
+cd ~/tutor_gdpo_project/PedagogicalRL
+source ~/tutor_gdpo_project/.venv/bin/activate
 
-### Patch training repo
-- [ ] add TutorRM config fields
-- [ ] add TutorRM model loading in `Classroom`
-- [ ] add TutorRM reward endpoint/client/wrapper
-- [ ] add TutorRM to `reward_funcs`
-- [ ] add GDPO config fields
-- [ ] add GDPO logic in trainer
+: "${WINNER_ALIAS:?Run Section 20 first}"
+: "${WINNER_CONFIG:?Run Section 20 first}"
 
-### Configs
-- [ ] generate `zero3_1GPU.yaml`
-- [ ] generate `7b_tutorrm_grpo.yaml`
-- [ ] generate `7b_tutorrm_gdpo.yaml`
+python - <<'PY'
+from pathlib import Path
+import os
+import yaml
 
-### Runs
-- [ ] A0a TutorRL-7B benchmark
-- [ ] A0b TutorRL-7B-think benchmark
-- [ ] A1 smoke
-- [ ] A2 smoke
-- [ ] A1 final
-- [ ] A2 final
-- [ ] internal evals
-- [ ] external evals
-- [ ] LightEval on winner
+root = Path('~/tutor_gdpo_project/PedagogicalRL').expanduser()
+src = root / 'config' / 'train_rl' / os.environ['WINNER_CONFIG']
+dst = root / 'config' / 'train_rl' / '7b_tutorrm_a3.yaml'
 
-### Outputs
-- [ ] logs saved
-- [ ] checkpoints saved
-- [ ] CSV result tables created
-- [ ] final report outline created
+cfg = yaml.safe_load(src.read_text())
+cfg['generation']['tutor_rm_mode'] = 'all_teacher_turns_mean'
+cfg['generation']['server_port'] = 8007
+cfg['train']['max_steps'] = 40
+cfg['logging']['save_dir'] = f"outputs/{os.environ['WINNER_ALIAS'].replace('-', '_')}_a3"
 
+dst.write_text(yaml.safe_dump(cfg, sort_keys=False))
+print(f"wrote {dst}")
+PY
+```
+
+### 22.2 Run the A3 training job
+
+```bash
+cd ~/tutor_gdpo_project/PedagogicalRL
+source ~/tutor_gdpo_project/.venv/bin/activate
+
+export SERVER_PORT=8007
+CUDA_VISIBLE_DEVICES=0 /usr/bin/time -v ./start_rl_training.sh \
+  --config_file config/deepspeed/zero3_1GPU.yaml \
+  --num_processes 1 \
+  --config-name 7b_tutorrm_a3.yaml \
+  2>&1 | tee logs/final_a3.log
+```
+
+### 22.3 Run the A3 external benchmark on the four target metrics only
+
+```bash
+cd ~/tutor_gdpo_project/mathtutorbench
+source ~/tutor_gdpo_project/.venv/bin/activate
+mkdir -p pids
+
+export A3_ALIAS="${WINNER_ALIAS}-a3"
+export A3_MODEL_PATH=~/tutor_gdpo_project/PedagogicalRL/outputs/${WINNER_ALIAS//-/_}_a3/model
+export A3_BENCH_START=$(date +%s)
+
+vllm serve "${A3_MODEL_PATH}" \
+  --served-model-name "${A3_ALIAS}" \
+  --seed 42 \
+  --tensor-parallel-size 1 > "serve_${A3_ALIAS}.log" 2>&1 &
+echo $! > "pids/${A3_ALIAS}.pid"
+
+until curl -fsS http://localhost:8000/v1/models >/dev/null; do
+  sleep 5
+done
+
+/usr/bin/time -v python main.py \
+  --tasks mistake_location.yaml,mistake_correction.yaml \
+  --provider completion_api \
+  --model_args base_url=http://localhost:8000/v1,model=${A3_ALIAS},is_chat=True,temperature=0.0,max_tokens=1024 \
+  2>&1 | tee "${A3_ALIAS}_nonped.log"
+
+/usr/bin/time -v python main.py \
+  --tasks scaffolding_generation.yaml \
+  --provider completion_api \
+  --model_args base_url=http://localhost:8000/v1,model=${A3_ALIAS},is_chat=True,temperature=0.0,max_tokens=1024 \
+  2>&1 | tee "${A3_ALIAS}_scaffolding.log"
+
+python reward_model/compute_scaffolding_score.py \
+  --data_path "results/generations-${A3_ALIAS}-scaffolding_generation.json"
+
+/usr/bin/time -v python main.py \
+  --tasks pedagogy_following.yaml \
+  --provider completion_api \
+  --model_args base_url=http://localhost:8000/v1,model=${A3_ALIAS},is_chat=True,temperature=0.0,max_tokens=1024 \
+  2>&1 | tee "${A3_ALIAS}_pedagogy.log"
+
+python reward_model/compute_scaffolding_score.py \
+  --data_path "results/generations-${A3_ALIAS}-pedagogy_following.json"
+
+export A3_BENCH_END=$(date +%s)
+
+python - <<'PY'
+import json
+import os
+from pathlib import Path
+
+alias = os.environ["A3_ALIAS"]
+start = int(os.environ["A3_BENCH_START"])
+end = int(os.environ["A3_BENCH_END"])
+
+meta = {
+    "model": alias,
+    "tasks": [
+        "mistake_location",
+        "mistake_correction",
+        "scaffolding_generation",
+        "pedagogy_following",
+    ],
+    "elapsed_minutes": round((end - start) / 60.0, 4),
+}
+
+out = Path("results") / f"benchmark_meta-{alias}.json"
+out.write_text(json.dumps(meta, indent=2))
+print(f"wrote {out}")
+PY
+
+kill "$(cat pids/${A3_ALIAS}.pid)" || true
+sleep 5
+kill -9 "$(cat pids/${A3_ALIAS}.pid)" 2>/dev/null || true
+rm -f "pids/${A3_ALIAS}.pid"
+```
+
+### 22.4 Expected A3 outputs
+
+The A3 appendix run must leave behind at least:
+
+```text
+~/tutor_gdpo_project/PedagogicalRL/
+  logs/
+    final_a3.log
+  outputs/
+    tutorrm_grpo_a3/     or tutorrm_gdpo_a3/
+
+~/tutor_gdpo_project/mathtutorbench/
+  results/
+    results-tutorrm-grpo-a3.yaml      or results-tutorrm-gdpo-a3.yaml
+    benchmark_meta-tutorrm-grpo-a3.json or benchmark_meta-tutorrm-gdpo-a3.json
+    generations-tutorrm-grpo-a3-mistake_location.json
+    generations-tutorrm-grpo-a3-mistake_correction.json
+    generations-tutorrm-grpo-a3-scaffolding_generation.json
+    generations-tutorrm-grpo-a3-pedagogy_following.json
+```
+
+A3 is appendix-only by default. Do not let it overwrite the main A0/A1/A2 summary tables.
+
+## 23) Required outputs the agent must leave behind
+
+```text
+~/tutor_gdpo_project/
+  env_versions.json
+  summary_tables/
+    results_internal.csv
+    results_external.csv
+    results_efficiency.csv
+
+~/tutor_gdpo_project/PedagogicalRL/
+  logs/
+    smoke_grpo.log
+    smoke_gdpo.log
+    final_grpo.log
+    final_gdpo.log
+    internal_tutorrly7b.log
+    internal_tutorrly7b_think.log
+    internal_tutorrm_grpo.log
+    internal_tutorrm_gdpo.log
+    final_a3.log
+    gpu0.csv
+    gpu1.csv
+  outputs/
+    tutorrm_grpo/
+    tutorrm_gdpo/
+    tutorrm_grpo_a3/     or tutorrm_gdpo_a3/
+    tutorrm_grpo/eval_outputs/metrics.json
+    tutorrm_grpo/eval_outputs/conversations.csv
+    tutorrm_gdpo/eval_outputs/metrics.json
+    tutorrm_gdpo/eval_outputs/conversations.csv
+
+~/tutor_gdpo_project/mathtutorbench/
+  results/
+    results-TutorRL-7B.yaml
+    results-TutorRL-7B-think.yaml
+    results-tutorrm-grpo.yaml
+    results-tutorrm-gdpo.yaml
+    results-tutorrm-grpo-a3.yaml      or results-tutorrm-gdpo-a3.yaml
+    benchmark_meta-TutorRL-7B.json
+    benchmark_meta-TutorRL-7B-think.json
+    benchmark_meta-tutorrm-grpo.json
+    benchmark_meta-tutorrm-gdpo.json
+    benchmark_meta-tutorrm-grpo-a3.json or benchmark_meta-tutorrm-gdpo-a3.json
+    generations-TutorRL-7B-*.json
+    generations-TutorRL-7B-think-*.json
+    generations-tutorrm-grpo-*.json
+    generations-tutorrm-gdpo-*.json
+    generations-tutorrm-grpo-a3-mistake_location.json      or generations-tutorrm-gdpo-a3-mistake_location.json
+    generations-tutorrm-grpo-a3-mistake_correction.json    or generations-tutorrm-gdpo-a3-mistake_correction.json
+    generations-tutorrm-grpo-a3-scaffolding_generation.json or generations-tutorrm-gdpo-a3-scaffolding_generation.json
+    generations-tutorrm-grpo-a3-pedagogy_following.json    or generations-tutorrm-gdpo-a3-pedagogy_following.json
+```
+
+## 24) One-screen execution checklist
+
+- clone the three repos
+- copy the six helper files into place
+- create `.env`
+- run `setup_env.sh`
+- patch launcher scripts
+- patch local logging fallback
+- add TutorRM config + implementation + endpoint/client/wrapper + reward list
+- add GDPO config + trainer branch + config wiring
+- generate reduced configs
+- run A0a and A0b
+- run A1 and A2 smoke tests
+- run A1 and A2 final training
+- run internal evals
+- run external evals
+- run LightEval on winner only
+- run `aggregate_results.py`
+- leave behind summary tables and logs
