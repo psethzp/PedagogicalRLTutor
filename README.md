@@ -14,6 +14,7 @@ The goal is to compare stock PedagogicalRL training against TutorRM-augmented GR
 - `setup_env.sh` - creates the Python 3.11 environment and installs the stack.
 - `run_mathtutorbench_suite.sh` - runs the benchmark suite against a served model.
 - `aggregate_results.py` - builds the final CSV summary tables.
+-  `.env.example` - template for optional secrets and recommended environment defaults.
 
 ## Quick Start
 
