@@ -21,3 +21,16 @@
   - `mathtutorbench/main.py`
   - `Towards_Reward_Modeling_for_Tutors/inference.py`
 - Stage 1 complete.
+- Added `~/tutor_gdpo_project/setup_env.sh` for reproducible venv bootstrap.
+- Made `setup_env.sh` executable.
+- Created `~/tutor_gdpo_project/.venv`.
+- Installed the Stage 2 base Python dependencies into the venv.
+- Ran import sanity checks successfully for:
+  - `torch`
+  - `transformers`
+  - `trl`
+  - `fastapi`
+  - `uvicorn`
+  - `datasets`
+- `torch.cuda.is_available()` returned `False` on this machine, so GPU execution remains for the later CUDA box.
+- Stage 2 complete.
