@@ -56,3 +56,9 @@
 - Verified `python -m py_compile` on `src/grpo/config.py`, `src/grpo/trainer.py`, and `train_rl.py`.
 - Verified `ClassroomGRPOConfig(...)` accepts custom `reward_weights`, `apply_gdpo`, and `gdpo_eps`.
 - Stage 5 complete.
+- Created `config/deepspeed/zero3_1GPU.yaml`.
+- Created `config/train_rl/7b_tutorrm_grpo.yaml`.
+- Created `config/train_rl/7b_tutorrm_gdpo.yaml`.
+- Verified all three YAML files parse successfully.
+- Verified the TutorRM configs point to `eth-nlped/TutorRL-7B`, use ports `8005` and `8006`, and set `max_steps: 80`.
+- Stage 6 complete.
