@@ -41,3 +41,12 @@
 - Verified `stop_vllm_server.sh` contains no `pkill`.
 - Verified shell syntax for all three launcher scripts with `bash -n`.
 - Stage 3 complete.
+- Added TutorRM and GDPO config fields to `config/train_rl_model.py`.
+- Added TutorRM classifier loading and scoring to `src/classroom.py`.
+- Added `/get_tutor_rm_reward` to `vllm_server.py`.
+- Added `get_tutor_rm_reward` RPC helper in `src/vllm/client.py`.
+- Added `construct_tutor_rm_reward_func` in `src/utils/utils.py`.
+- Added TutorRM reward to `train_rl.py` in the required order.
+- Verified `python -m py_compile` on the patched training and server modules.
+- Verified `RLModelTrainingConfig()` exposes the new TutorRM and GDPO defaults.
+- Stage 4 complete.
