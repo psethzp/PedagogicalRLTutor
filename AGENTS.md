@@ -1240,6 +1240,8 @@ Winner rule:
 2. if tied, higher mean over `mistake_correction`, `mistake_location`, `pedagogy_following`, `scaffolding_generation`
 3. if still tied, lower train wall-clock time
 
+
+```bash
 cd ~/tutor_gdpo_project
 source ~/tutor_gdpo_project/.venv/bin/activate
 
@@ -1302,6 +1304,7 @@ echo "Winner label: ${WINNER_LABEL}"
 echo "Winner alias: ${WINNER_ALIAS}"
 echo "Winner model: ${WINNER_MODEL}"
 echo "Winner config: ${WINNER_CONFIG}"
+```
 
 Run LightEval only on the winner:
 
