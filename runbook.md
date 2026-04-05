@@ -34,3 +34,10 @@
   - `datasets`
 - `torch.cuda.is_available()` returned `False` on this machine, so GPU execution remains for the later CUDA box.
 - Stage 2 complete.
+- Patched `PedagogicalRL/stop_vllm_server.sh` to use PID-file shutdown only.
+- Patched `PedagogicalRL/start_vllm_server.sh` to `exec python vllm_server.py "$@"`.
+- Patched `PedagogicalRL/start_rl_training.sh` to use `SERVER_PORT`, write `.vllm_${SERVER_PORT}.pid`, and wait on `localhost:${SERVER_PORT}`.
+- Verified `start_rl_training.sh` references `localhost:${SERVER_PORT}`.
+- Verified `stop_vllm_server.sh` contains no `pkill`.
+- Verified shell syntax for all three launcher scripts with `bash -n`.
+- Stage 3 complete.
