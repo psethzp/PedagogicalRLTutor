@@ -1,0 +1,5 @@
+# Minimal constraints for the LightEval-only environment.
+# Keep this isolated from the core PedagogicalRL stack.
+
+lighteval==0.13.0
+vllm==0.11.0

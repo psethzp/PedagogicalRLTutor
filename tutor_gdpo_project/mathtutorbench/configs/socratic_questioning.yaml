@@ -1,0 +1,15 @@
+name: socratic_questioning
+dataset_path: gsm8k
+dataset_name: socratic
+training_split: train
+test_split: test
+system_prompt: |
+  You are a helpful math tutor generating step-by-step questions. Generate only a list of questions on one line.
+  {{ shots }}
+  Problem: {{question}}
+  Questions:
+ground_truth_format: "{{ answer }}"
+few_shot_samples: |
+  Problem: Janet's ducks lay 16 eggs per day. She eats three for breakfast every morning and sells the rest at the farmers market daily for $2 per egg. How much in dollars does she make per day at the farmers market?
+  Questions: How many eggs does Janet sell? How much does Janet make at the farmers' market?
+stop: ["Problem:", "\n"]

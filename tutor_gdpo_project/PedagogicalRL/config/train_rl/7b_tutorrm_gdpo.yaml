@@ -1,0 +1,81 @@
+train:
+  number_of_problems_per_batch: 4
+  num_samples_per_problem: 4
+  learning_rate: 5e-7
+  beta: 0.001
+  mu: 2
+  per_device_train_batch_size: 1
+  max_steps: 80
+  gdpo_eps: 0.0001
+  reward_weights:
+  - 1.0
+  - 0.25
+  - 1.0
+  - 1.0
+  - 1.0
+  save_policy_to_disk_every_n: 5
+  use_gdpo: true
+teacher_model:
+  model_name_or_path: eth-nlped/TutorRL-7B
+  vllm:
+    temperature: 1.0
+    max_length: 4096
+    max_num_seqs: 32
+    gpu_memory_utilization: 0.22
+    number_of_gpus_per_instance: 1
+    max_number_of_instances: -1
+    load_and_unload: true
+    use_v0: true
+    enforce_eager: true
+student_model:
+  model_name_or_path: neuralmagic/Meta-Llama-3.1-8B-Instruct-FP8
+  vllm:
+    temperature: 0.6
+    max_length: 4096
+    max_num_seqs: 32
+    gpu_memory_utilization: 0.22
+    number_of_gpus_per_instance: 1
+    max_number_of_instances: -1
+    use_v0: false
+    load_and_unload: true
+judge_model:
+  model_name_or_path: Qwen/Qwen2.5-14B-Instruct-AWQ
+  vllm:
+    temperature: 0.6
+    max_length: 4096
+    max_num_seqs: 32
+    gpu_memory_utilization: 0.22
+    number_of_gpus_per_instance: 1
+    max_number_of_instances: -1
+    load_and_unload: false
+    use_v0: false
+reward_model:
+  model_name_or_path: Answer
+huggingface:
+  name: <huggingface_name>
+  push_to_hub: false
+logging:
+  wandb: false
+  wandb_project: train-rl
+  wandb_run_name: Qwen2.5-7B-Instruct-HardLambda1.0
+  run_group: 7b
+  wandb_tags:
+  - 7b
+  save_dir: outputs/tutorrm_gdpo
+  save_steps: 10
+generation:
+  extra_penalty_for_rejected_judges: 0.75
+  ignore_rejected_judge: true
+  use_experimental_shared_memory: false
+  max_turns: 8
+  max_tokens_in_conversation: 4096
+  max_tokens_per_turn: 512
+  max_tokens_per_student_attempt: 1024
+  max_tokens_per_judge_attempt: 512
+  number_student_attempts: 2
+  number_judge_attempts: 1
+  use_tutor_rm: true
+  tutor_rm_model_name_or_path: kpetyxova/towards-reward-modeling-tutors
+  tutor_rm_max_length: 1024
+  tutor_rm_mode: first_teacher_only
+  server_port: 8006

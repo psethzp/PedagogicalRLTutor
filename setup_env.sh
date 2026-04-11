@@ -17,7 +17,13 @@ if [[ -n "${HF_TOKEN:-}" && -z "${HUGGING_FACE_HUB_TOKEN:-}" ]]; then
   export HUGGING_FACE_HUB_TOKEN="$HF_TOKEN"
 fi
 
-python3.11 -m venv "$PROJECT_ROOT/.venv"
+PYTHON_BIN="${PYTHON_BIN:-python3.11}"
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+  echo "PYTHON_BIN '$PYTHON_BIN' not found; set PYTHON_BIN to a Python 3.11 executable." >&2
+  exit 1
+fi
+
+"$PYTHON_BIN" -m venv "$PROJECT_ROOT/.venv"
 source "$PROJECT_ROOT/.venv/bin/activate"
 python -m pip install --upgrade pip wheel setuptools
 pip install ninja packaging
@@ -32,20 +38,27 @@ pip install -c "$CONSTRAINTS_FILE" \
   datasets==3.1.0 \
   hydra-core==1.3.2 \
   omegaconf==2.3.0 \
+  sacrebleu==2.5.1 \
   huggingface_hub==0.30.2 \
   fastapi==0.115.12 \
   uvicorn==0.34.0 \
+  uvloop==0.19.0 \
+  python-multipart==0.0.9 \
   python-dotenv==1.0.1 \
   tenacity==9.0.0 \
   pynvml==12.0.0
 
-pip install -c "$CONSTRAINTS_FILE" vllm==0.8.3
-pip install -c "$CONSTRAINTS_FILE" flash-attn==2.7.4.post1 --no-build-isolation
+pip install -c "$CONSTRAINTS_FILE" --no-deps vllm==0.8.3
+PIP_NO_CACHE_DIR=1 pip install -c "$CONSTRAINTS_FILE" flash-attn==2.7.4.post1 --no-build-isolation
 
+REQ_TMP="$(mktemp)"
+grep -v -E '^(vllm|math-verify)([=<>]|$)' "$PROJECT_ROOT/PedagogicalRL/requirements.txt" > "$REQ_TMP"
 pip install -c "$CONSTRAINTS_FILE" \
-  -r "$PROJECT_ROOT/PedagogicalRL/requirements.txt" \
-  -r "$PROJECT_ROOT/Towards_Reward_Modeling_for_Tutors/requirements.txt" \
-  lighteval
+  -r "$REQ_TMP" \
+  -r "$PROJECT_ROOT/Towards_Reward_Modeling_for_Tutors/requirements.txt"
+rm -f "$REQ_TMP"
+
+pip install -c "$CONSTRAINTS_FILE" --no-deps math-verify
 
 pip install -c "$CONSTRAINTS_FILE" --no-deps \
   -r "$PROJECT_ROOT/mathtutorbench/requirements.txt"

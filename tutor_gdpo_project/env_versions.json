@@ -1,0 +1,11 @@
+{
+  "python": "3.11.9 (main, Jun 25 2025, 15:49:11) [GCC 8.5.0]",
+  "torch": "2.6.0+cu124",
+  "cuda_available": false,
+  "transformers": "4.50.3",
+  "trl": "0.18.0",
+  "datasets": "3.1.0",
+  "fastapi": "0.115.12",
+  "uvicorn": "0.34.0",
+  "vllm": "0.8.3"
+}

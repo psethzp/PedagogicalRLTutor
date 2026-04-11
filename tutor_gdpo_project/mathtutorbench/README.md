@@ -1,0 +1,156 @@
+# MathTutorBench: A Benchmark for Measuring Open-ended Pedagogical Capabilities of LLM Tutors
+[![Arxiv](https://img.shields.io/badge/Arxiv-2502.18940-red?style=flat-square&logo=arxiv&logoColor=white)](https://arxiv.org/abs/2502.18940)
+[![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/deed.en)
+[![Python Versions](https://img.shields.io/badge/Python-3.12-blue.svg?style=flat&logo=python&logoColor=white)](https://www.python.org/)
+
+## Overview
+**MathTutorBench** is a benchmark which provides a unified framework for evaluating open-ended pedagogical capabilities of large langauge models (LLMs) tutors across three high level teacher skills and seven concrete tasks.
+
+
+## Key Features
+- **Automatic Evaluation**: The benchmark is designed to be run automatically on any new models you are developing.
+- **Comprehensive Metrics**: The benchmark covers a three high level tasks skills and seven tasks to evaluate in the domain of math tutoring.
+- **Teacher-Grounded Evaluation**: Each task is annotated with teacher ground truths and compared to it.
+- **Fast execution loop**: Run benchmark on different tasks very quickly.
+
+<p align="center">
+<img src="./images/skills.png" alt="Skills" width="400">
+</p>
+
+## Quick Start - Evaluate a New Model
+### 0. Run your model locally using vllm - skip if you are using API
+For more details on how to run your model locally using vllm, see [vllm](https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#vllm-server) documentation. Optionally add tensor parallelism if you have multiple GPUs and your model is large.
+```bash
+vllm serve [[model_name]] --seed 42 --tensor-parallel-size 4
+```
+
+### 1. Run task(s) from the benchmark
+```bash
+# Example with vllm model
+python main.py --tasks mistake_location.yaml --provider completion_api --model_args base_url=http://localhost:8000/v1,model=meta-llama/Llama-3.2-3B-Instruct
+# Example with OpenAI API
+python main.py --tasks mistake_correction.yaml --provider completion_api --model_args model=gpt-4o-mini-2024-07-18,api_key=<API_KEY>
+# Example with LearnLM Gemini API
+python main.py --tasks student_solution_correctness.yaml --provider gemini --model_args model==learnlm-1.5-pro-experimental,api_key=<API_KEY>
+
+```
+- Required:
+  - `--tasks`: Task definition file in the `configs` folder. Use comma `,` separated list for multiple sequential tasks.
+    - `problem_solving.yaml`: Task definition for problem solving.
+    - `socratic_questioning.yaml`: Task definition for socratic questioning.
+    - `student_solution_correctness.yaml`: Task definition for student solution generation.
+    - `mistake_location.yaml`: Task definition for mistake location.
+    - `mistake_correction.yaml`: Task definition for mistake correction.
+    - `scaffolding_generation.yaml`: Task definition for scaffolding generation.
+    - `pedagogy_following.yaml`: Task definition for pedagogy following.
+    - `scaffolding_generation_hard.yaml`: Task definition for scaffolding generation hard.
+    - `pedagogy_following_hard.yaml`: Task definition for pedagogy following hard.
+  - `--provider`: API provider to use for the task.
+    - `completion_api`: Use the completion API for the task. Support any OpenAI-type API. Use for openai and vllm models.
+    - `gemini`: Use the gemini API for the task. 
+  - `--model_args`: Model arguments to pass to the API provider.
+    - `base_url`: Base URL of the API provider. Empty for openai and gemini.
+    - `model`: Model name to use for the task. Default is the first available model.
+    - `api_key`: API key to access API. Empty for vllm models.
+    - `is_chat`: Whether the requests to the model should use chat-based template (Chat Completion API). Default is False.
+    - `temperature`: Temperature for sampling. Default is 0.0.
+    - `max_tokens`: Maximum tokens to generate. Default is 2048.
+    - `max_retries`: Maximum retries for the API. Default is 3.
+
+The performance of different benchmarked models averaged across tasks for Qwen2.5 family is as follows (using vllm version 0.8.0 on one node with 4x GH200 GPUs):
+
+| Model                  | Total time [min] | Examples/sec | Tokens/sec |
+|-------------------------|------------------|--------------|------------|
+| Qwen2.5-1.5B-Instruct  | 61.1             | 2.73         | 757.6      |
+| Qwen2.5-7B-Instruct    | 58.3             | 2.86         | 1012       |
+| Qwen2.5-32B-Instruct   | 545.3            | 0.31         | 166.3      |
+| Qwen2.5-72B-Instruct   | 233.9            | 0.71         | 135.2      |
+
+
+### 2. Run reward model of the Pedagogical Ability tasks
+Set the `--data_path` to model outputs of the pedagogical ability tasks. The model computes win rates of generated teacher utterance over the ground truth teacher utterance.
+```bash
+python reward_model/compute_scaffolding_score.py --data_path results/generations-<specific-model>.json
+```
+
+As the model is small in size (1.5B parameters), running the full evaluation should be fast (within 10 minutes on a single GPU).
+Reward model computation performance with different batch sizes on a single GH200 GPU:
+
+| Batch size | Total time [sec] | Examples/sec | Tokens/sec |
+|------------|------------------|--------------|------------|
+| 1          | 419.58           | 7.01         | 6928.0     |
+| 8          | 406.08           | 7.25         | 7159.3     |
+| 64         | 413.28           | 7.12         | 7034.8     |
+| 128        | 408.87           | 7.20         | 7110.0     |
+
+
+
+### 3. Visualize results
+Results are available in the `results` folder. To visualize the results, run:
+```bash
+python visualize.py --results_dir results/
+```
+
+<img src="./images/figure2.png" alt="Skills" width="800">
+
+
+## Installation
+```bash
+pip install -r requirements.txt
+```
+
+## Leaderboard
+| Model | Problem Solving | Socratic Questioning | Solution Correctness | Mistake Location | Mistake Correction | Scaffolding Win Rate | Pedagogy IF Win Rate | Scaffolding (Hard) | Pedagogy IF (Hard) |
+|--------|----------------|----------------------|----------------------|------------------|-------------------|------------------|-----------------|----------------|------------------|
+| LLaMA3.2-3B-Instruct | 0.60 | 0.29 | 0.67 | 0.41 | 0.13 | **0.64** | 0.63 | 0.45 | 0.40 |
+| LLaMA3.1-8B-Instruct | 0.70 | 0.29 | 0.63 | 0.29 | 0.09 | 0.61 | 0.67 | 0.46 | 0.49 |
+| LLaMA3.1-70B-Instruct | 0.91 | 0.29 | 0.71 | 0.56 | 0.19 | 0.63 | 0.70 | 0.49 | 0.49 |
+| GPT-4o | 0.90 | **0.48** | 0.67 | 0.37 | **0.84** | 0.50 | **0.82** | 0.46 | **0.70** |
+| LearnLM-1.5-Pro | **0.94** | 0.32 | **0.75** | **0.57** | 0.74 | **0.64** | 0.68 | **0.66** | 0.67 |
+| Llemma-7B-ScienceTutor | 0.62 | 0.29 | 0.66 | 0.29 | 0.16 | 0.37 | 0.48 | 0.38 | 0.42 |
+| Qwen2.5-7B-SocraticLM | 0.73 | 0.32 | 0.05 | 0.39 | 0.23 | 0.39 | 0.39 | 0.28 | 0.28 |
+| Qwen2.5-Math-7B-Instruct | 0.88 | 0.35 | 0.43 | 0.47 | 0.49 | 0.06 | 0.07 | 0.05 | 0.05 |
+
+
+## Submit your model to leaderboard
+To submit your model to the leaderboard, please follow the steps below:
+1. Open a new issue with the title `Leaderboard Submission: <Model Name>`.
+2. Provide the exact model name on the Huggingface hub and if specific code/arguments/settings are needed for the model or the vllm library which will be used to run your model. Please copy the results from the local run of the model.
+
+## Adding a New Task
+Please open a new PR and provide the configuration of the task in the `configs` folder and the task implementation in the `tasks` folder.
+
+# Scaffolding Score Pedagogical Reward Model
+- [Dataset](https://huggingface.co/datasets/dmacjam/pedagogical-rewardmodel-data) used to train and evaluate the Scaffolding score reward model
+
+## Citation
+Please cite as:
+```bibtex
+@inproceedings{macina-etal-2025-mathtutorbench,
+    title = "{M}ath{T}utor{B}ench: A Benchmark for Measuring Open-ended Pedagogical Capabilities of {LLM} Tutors",
+    author = "Macina, Jakub  and
+      Daheim, Nico  and
+      Hakimi, Ido  and
+      Kapur, Manu  and
+      Gurevych, Iryna  and
+      Sachan, Mrinmaya",
+    editor = "Christodoulopoulos, Christos  and
+      Chakraborty, Tanmoy  and
+      Rose, Carolyn  and
+      Peng, Violet",
+    booktitle = "Proceedings of the 2025 Conference on Empirical Methods in Natural Language Processing",
+    month = nov,
+    year = "2025",
+    address = "Suzhou, China",
+    publisher = "Association for Computational Linguistics",
+    url = "https://aclanthology.org/2025.emnlp-main.11/",
+    doi = "10.18653/v1/2025.emnlp-main.11",
+    pages = "204--221",
+    ISBN = "979-8-89176-332-6",
+```
+
+This work is licensed under a
+[Creative Commons Attribution-ShareAlike 4.0 International License][cc-by-sa].
+
+[cc-by-sa]: http://creativecommons.org/licenses/by-sa/4.0/
+[cc-by-sa-shield]: https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg
