@@ -1,0 +1,15 @@
+pandas
+numpy
+tqdm
+python-dotenv
+
+torch
+transformers
+datasets
+accelerate
+trl
+huggingface_hub
+
+langchain
+langchain-core
+langchain-anthropic
