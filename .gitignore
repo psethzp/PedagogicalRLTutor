@@ -1,5 +1,5 @@
 .DS_Store
 */.venv/
 */.venv_*/
-*/runbook.md
-*/running_jobs.md
+/runbook.md
+/running_jobs.md
